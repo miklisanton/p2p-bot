@@ -14,6 +14,7 @@ type Controller struct {
 	TgLink               string
 	SubPrice             string
 	SubCurrency          string
+	BotSecret            string
 }
 
 func NewController(userService *services.UserService,
@@ -31,6 +32,7 @@ func NewController(userService *services.UserService,
 		cfg.Telegram.InviteLink,
 		cfg.Website.SubPrice,
 		cfg.Website.SubCurrency,
+		cfg.Telegram.APIkey,
 	}
 
 }

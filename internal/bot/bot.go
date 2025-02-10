@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
@@ -21,6 +21,7 @@ type Bot struct {
 	NotificationCh chan services.Notification
 	exchanges      []services.ExchangeI
 	toDelete       []int
+	miniAppURL     string
 }
 
 func NewBot(cfg *config.Config, userSvc *services.UserService, trackerSvc *services.TrackerService, exs []services.ExchangeI) (*Bot, error) {
@@ -28,12 +29,14 @@ func NewBot(cfg *config.Config, userSvc *services.UserService, trackerSvc *servi
 	if err != nil {
 		return nil, err
 	}
+	api.Debug = true
 
 	return &Bot{
 		api:            api,
 		userService:    userSvc,
 		trackerService: trackerSvc,
 		NotificationCh: make(chan services.Notification),
+		miniAppURL:     cfg.Telegram.MiniAppURL,
 		exchanges:      exs}, nil
 }
 
@@ -41,10 +44,8 @@ func (bot *Bot) Start() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.api.GetUpdatesChan(u)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get updates")
-	}
+	updates := bot.api.GetUpdatesChan(u)
+	log.Info().Msg("Bot started")
 
 	for update := range updates {
 		if update.Message == nil {
@@ -105,8 +106,17 @@ func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
 		bot.SendMessage(msg.Chat.ID, "Successfully connected")
 		return nil
 	} else {
-		// TODO handle default /start command
-		bot.SendMessage(msg.Chat.ID, "TODO, /start command")
+		// Send mini app keyboard
+		log.Debug().Str("url", bot.miniAppURL).Msg("a")
+		message := tgbotapi.NewMessage(msg.Chat.ID, "Choose an option")
+		button := tgbotapi.NewKeyboardButton("Launch app")
+		button.WebApp = &tgbotapi.WebAppInfo{
+			URL: bot.miniAppURL,
+		}
+		message.ReplyMarkup = tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(button),
+		)
+		bot.api.Send(message)
 		return nil
 	}
 }

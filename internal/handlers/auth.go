@@ -2,15 +2,17 @@ package handlers
 
 import (
 	"database/sql"
-	"github.com/rs/zerolog/log"
 	"net/http"
 	"os"
 	"p2pbot/internal/db/models"
 	"p2pbot/internal/rediscl"
 	"p2pbot/internal/requests"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
+	initdata "github.com/telegram-mini-apps/init-data-golang"
 	"github.com/teris-io/shortid"
 )
 
@@ -112,5 +114,22 @@ func (cont *Controller) GetCSRFToken(c echo.Context) error {
 	csrf := c.Get("csrf").(string)
 	return c.JSON(http.StatusOK, map[string]any{
 		"csrf": csrf,
+	})
+}
+
+// Login is used for telegram mini app authentication
+func (cont *Controller) Login(c echo.Context) error {
+	// Get initdata from request header
+	auth := c.Request().Header.Get("Authorization")
+	data := strings.Split(auth, " ")
+	if len(data) != 2 || data[0] != "tma" {
+		return c.NoContent(http.StatusUnauthorized)
+	}
+	// Validate initdata
+	if err := initdata.Validate(data[1], cont.BotSecret, 24*time.Hour); err != nil {
+		return c.NoContent(http.StatusUnauthorized)
+	}
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Logged in",
 	})
 }

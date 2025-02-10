@@ -67,7 +67,7 @@ func main() {
 			echo.HeaderContentType,
 			echo.HeaderAccept,
 			echo.HeaderXCSRFToken,
-			"Authorization",
+			echo.HeaderAuthorization,
 		},
 		AllowCredentials: true,
 	}))
@@ -75,6 +75,8 @@ func main() {
 	publicGroup := e.Group("/api/v1/public")
 	//Route for auth0 signup webhook
 	publicGroup.POST("/signup", controller.Signup)
+	//Route for tg mini app login
+	publicGroup.POST("/telegram/login", controller.Login)
 	//CSRF token
 	publicGroup.GET("/csrf", controller.GetCSRFToken)
 	// Route for payment webhook

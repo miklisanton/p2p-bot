@@ -14,6 +14,7 @@ rabbitmq:
 telegram:
   api-key: ${BOT_TOKEN}
   bot-link: ${BOT_LINK}
+  mini-app: ${MINI_APP_URL}
 exchange:
   max-retries: 20
   retry-delay: 30
