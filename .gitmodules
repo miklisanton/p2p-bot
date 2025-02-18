@@ -1,0 +1,3 @@
+[submodule "tg-mini-app"]
+	path = tg-mini-app
+	url = https://github.com/miklisanton/p2phub-miniapp
