@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
+	"p2pbot/internal/JWTConfig"
 	"p2pbot/internal/db/models"
 	"p2pbot/internal/rediscl"
 	"p2pbot/internal/requests"
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 	initdata "github.com/telegram-mini-apps/init-data-golang"
@@ -123,13 +125,47 @@ func (cont *Controller) Login(c echo.Context) error {
 	auth := c.Request().Header.Get("Authorization")
 	data := strings.Split(auth, " ")
 	if len(data) != 2 || data[0] != "tma" {
-		return c.NoContent(http.StatusUnauthorized)
+		return echo.ErrUnauthorized
 	}
 	// Validate initdata
 	if err := initdata.Validate(data[1], cont.BotSecret, 24*time.Hour); err != nil {
-		return c.NoContent(http.StatusUnauthorized)
+		return echo.ErrUnauthorized
 	}
+	// Find user in database
+	initParsed, err := initdata.Parse(data[1])
+	if err != nil {
+		return err
+	}
+	if user, err := cont.userService.GetUserByChatID(initParsed.Chat.ID); err == sql.ErrNoRows {
+		// Create user if not found
+		id, err := cont.userService.CreateUser(&models.User{
+			ChatID: &initParsed.Chat.ID,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create user")
+			return err
+		}
+		log.Info().Int("id", id).Msg("User created")
+	} else {
+		log.Info().Int("id", user.ID).Msg("User logged in")
+	}
+	// Issue JWT
+	claims := JWTConfig.JWTCustomClaims{
+		ChatID: initParsed.Chat.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	t, err := token.SignedString([]byte(cont.JWTSecret))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to sign token")
+		return err
+	}
+
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Logged in",
+		"token":   t,
 	})
 }

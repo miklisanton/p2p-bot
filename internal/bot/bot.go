@@ -25,7 +25,7 @@ type Bot struct {
 }
 
 func NewBot(cfg *config.Config, userSvc *services.UserService, trackerSvc *services.TrackerService, exs []services.ExchangeI) (*Bot, error) {
-	api, err := tgbotapi.NewBotAPI(cfg.Telegram.APIkey)
+	api, err := tgbotapi.NewBotAPIWithAPIEndpoint(cfg.Telegram.APIkey, "https://api.telegram.org/bot%s/test/%s")
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +69,11 @@ func (bot *Bot) Start() {
 
 func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
 	args := strings.Split(msg.CommandArguments(), " ")
-	// Send different start message if unique_code is provided
 	if len(args) == 1 && args[0] != "" {
 		// Handle telegram connect
-		// extract unique_code from /start command
+		// Extract unique_code from /start command
 		code := args[0]
+		// Get user_id from redis, telegram_codes:unique_code
 		ctx := rediscl.RDB.Ctx
 		userID, err := rediscl.RDB.Client.Get(ctx, "telegram_codes:"+code).Result()
 		if userID == "" || err == redis.Nil {
@@ -106,24 +106,11 @@ func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
 		bot.SendMessage(msg.Chat.ID, "Successfully connected")
 		return nil
 	} else {
-		// Send mini app keyboard
-		log.Debug().Str("url", bot.miniAppURL).Msg("a")
-		message := tgbotapi.NewMessage(msg.Chat.ID, "Choose an option")
-		button := tgbotapi.NewKeyboardButton("Launch app")
-		button.WebApp = &tgbotapi.WebAppInfo{
-			URL: bot.miniAppURL,
-		}
-		message.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(button),
-		)
-		bot.api.Send(message)
+		// Send welcome message
+		bot.SendMessage(msg.Chat.ID, "Welcome to P2P Hub.\n Press Trackers to launch the mini app")
 		return nil
 	}
 }
-
-// 2. get user_id from redis, telegram_codes:unique_code
-// 3. if user_id exists, extract chat_id from message and set user.chat_id, otherwise send link expired message
-// 4. delete unique_code from redis
 
 func (bot *Bot) SendMessage(chatID int64, text string) int {
 	msg := tgbotapi.NewMessage(chatID, text)

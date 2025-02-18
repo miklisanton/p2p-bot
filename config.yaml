@@ -20,7 +20,7 @@ exchange:
   retry-delay: 30
 website:
   port: 443
-  backend-port: 8443
+  backend-port: 8080
   key-file: /app/certs/server.key
   cert-file: /app/certs/server.crt
   front-url: http://front:3000

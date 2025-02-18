@@ -115,26 +115,54 @@ func LoggingMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+// AuthMiddleware checks if client is telegram mini app or nextjs app and uses appropriate JWT authentication
 func AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		token, ok := c.Get("user").(*jwt.Token)
+		clientID := c.Request().Header.Get("X-Client-ID")
+		if clientID == "telegram-apps" {
+			// If client is telegram mini app use custom JWT authentication
+			config := JWTConfig.NewJWTConfig(os.Getenv("JWT_SECRET"))
+			midleware, err := config.ToMiddleware()
+			if err != nil {
+				log.Error().Err(err).Msg("Error creating JWT middleware")
+				return err
+			}
+			return midleware(next)(c)
+		} else {
+			// If client is nextjs app use Auth0 JWT authentication
+			return CheckJWT(next)(c)
+		}
+	}
+}
+
+// ExtractID extracts chat_id from JWT for telegram mini app and email for nextjs app
+func ExtractID(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		clientID := c.Request().Header.Get("X-Client-ID")
+		if clientID == "telegram-apps" {
+			// If client is telegram mini app extract chat_id from JWT
+			return ExtractChatID(next)(c)
+		} else {
+			// If client is nextjs app extract email from JWT
+			return ExtractEmail(next)(c)
+		}
+	}
+}
+
+func ExtractChatID(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		log.Debug().Interface("user", c.Get("user")).Msg("User")
+		user := c.Get("user").(*jwt.Token)
+		claims, ok := user.Claims.(*JWTConfig.JWTCustomClaims)
 		if !ok {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+			log.Error().Msg("Failed to cast JWT claims")
+			return echo.ErrInternalServerError
 		}
-
-		if !token.Valid {
-			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
-		}
-
-		claims := token.Claims.(*JWTConfig.JWTCustomClaims)
-
-		c.Set("email", claims.Email)
-
+		c.Set("chat_id", claims.ChatID)
 		log.Info().Fields(map[string]interface{}{
-			"email":     claims.Email,
+			"chat_id":   claims.ChatID,
 			"client_ip": c.RealIP(),
 		}).Msg("User authenticated")
-
 		return next(c)
 	}
 }
@@ -143,33 +171,24 @@ func ExtractEmail(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		claims, ok := ctx.Request().Context().Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
 		if !ok {
-			ctx.JSON(
-				http.StatusInternalServerError,
-				map[string]string{"message": "Failed to get JWT claims."},
-			)
-			return nil
+			log.Error().Msg("Failed to get JWT claims")
+			return echo.ErrInternalServerError
 		}
 
-		customClaims, ok := claims.CustomClaims.(*CustomClaims)
+		auth0Claims, ok := claims.CustomClaims.(*CustomClaims)
 		if !ok {
-			ctx.JSON(
-				http.StatusInternalServerError,
-				map[string]string{"message": "Failed to cast custom claims."},
-			)
-			return nil
+			log.Error().Msg("Failed to cast JWT claims")
+			return echo.ErrInternalServerError
 		}
 
-		if customClaims.Email == "" {
-			ctx.JSON(
-				http.StatusInternalServerError,
-				map[string]string{"message": "Failed to get JWT claims"},
-			)
-			return nil
+		if auth0Claims.Email == "" {
+			log.Error().Msg("Email is empty")
+			return echo.ErrInternalServerError
 		}
-		ctx.Set("email", customClaims.Email)
+		ctx.Set("email", auth0Claims.Email)
 
 		log.Info().Fields(map[string]interface{}{
-			"email":     customClaims.Email,
+			"email":     auth0Claims.Email,
 			"client_ip": ctx.RealIP(),
 		}).Msg("User authenticated")
 

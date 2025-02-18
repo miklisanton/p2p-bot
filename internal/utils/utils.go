@@ -2,9 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"p2pbot/internal/db/models"
 	"reflect"
+
+	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func GetField(obj interface{}, name string) (interface{}, error) {
@@ -72,4 +74,20 @@ func AllOutbidded(pMethods []*models.PaymentMethod) bool {
 		}
 	}
 	return true
+}
+
+// Returns email and chat_id from echo.Context
+// if email is present, chat_id is -1
+// if chat_id is present, email is ""
+// if none or both are present, error is returned
+func RetreiveEmailNChatID(ctx echo.Context) (string, int64, error) {
+	email := ctx.Get("email")
+	chatID := ctx.Get("chat_id")
+	if email != nil && chatID == nil {
+		return email.(string), -1, nil
+	}
+	if email == nil && chatID != nil {
+		return "", chatID.(int64), nil
+	}
+	return "", -1, fmt.Errorf("email xor chat_id must be provided in context")
 }

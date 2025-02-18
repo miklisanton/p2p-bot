@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"p2pbot/internal/db/models"
 	"p2pbot/internal/db/repository"
 )
@@ -27,4 +28,19 @@ func (s *UserService) GetUserByID(id int) (*models.User, error) {
 
 func (s *UserService) GetUserByEmail(email string) (*models.User, error) {
 	return s.repo.GetByEmail(email)
+}
+
+// GetUser retreives a user by email or chat_id
+// Use email == "" to search by chat_id
+// Use chat_id == -1 to search by email
+// If both email and chat_id are provided, error is returned
+func (s *UserService) GetUser(email string, chat_id int64) (*models.User, error) {
+	if email != "" {
+		return s.GetUserByEmail(email)
+	}
+	if chat_id != -1 {
+		return s.GetUserByChatID(chat_id)
+	}
+
+	return nil, fmt.Errorf("email xor chat_id must be provided")
 }

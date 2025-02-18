@@ -20,8 +20,13 @@ import (
 // returns 10 trackers per page
 
 func (contr *Controller) GetTrackers(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -31,6 +36,7 @@ func (contr *Controller) GetTrackers(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 	// Get page
@@ -59,8 +65,9 @@ func (contr *Controller) GetTrackers(c echo.Context) error {
 	}
 
 	log.Info().Fields(map[string]interface{}{
-		"email": email,
-		"page":  p,
+		"email":   email,
+		"chat_id": chatID,
+		"page":    p,
 	}).Msg("Trackers requested")
 
 	trackers, err := contr.trackerService.GetTrackersByUserId(u.ID)
@@ -95,8 +102,13 @@ func (contr *Controller) GetTrackers(c echo.Context) error {
 }
 
 func (contr *Controller) GetTracker(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -106,6 +118,7 @@ func (contr *Controller) GetTracker(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 
@@ -143,8 +156,13 @@ func (contr *Controller) GetTracker(c echo.Context) error {
 }
 
 func (contr *Controller) CreateTracker(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -153,8 +171,8 @@ func (contr *Controller) CreateTracker(c echo.Context) error {
 			},
 		})
 	}
-
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 
@@ -282,8 +300,13 @@ func (contr *Controller) CreateTracker(c echo.Context) error {
 }
 
 func (contr *Controller) DeleteTracker(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -293,6 +316,7 @@ func (contr *Controller) DeleteTracker(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 
@@ -335,8 +359,13 @@ func (contr *Controller) DeleteTracker(c echo.Context) error {
 }
 
 func (contr *Controller) SetNotifyTracker(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -346,6 +375,7 @@ func (contr *Controller) SetNotifyTracker(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 
@@ -399,7 +429,12 @@ func (contr *Controller) SetNotifyTracker(c echo.Context) error {
 
 // Options related endpoints
 func (contr *Controller) GetPaymentMethods(c echo.Context) error {
-	email := c.Get("email").(string)
+	// Retreive email and chatID
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
 	// Check query parameters
 	exchange := c.QueryParam("exchange")
 	if exchange == "" {
@@ -449,6 +484,7 @@ func (contr *Controller) GetPaymentMethods(c echo.Context) error {
 
 	log.Info().Fields(map[string]interface{}{
 		"email":    email,
+		"chat_id":  chatID,
 		"exchange": exchange,
 		"currency": currency,
 		"options":  out,
@@ -461,7 +497,12 @@ func (contr *Controller) GetPaymentMethods(c echo.Context) error {
 }
 
 func (contr *Controller) GetCurrencies(c echo.Context) error {
-	email := c.Get("email").(string)
+	// Retreive email and chatID
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
 	// Check query parameters
 	exchange := c.QueryParam("exchange")
 	if exchange == "" {
@@ -492,6 +533,7 @@ func (contr *Controller) GetCurrencies(c echo.Context) error {
 
 	log.Info().Fields(map[string]interface{}{
 		"email":    email,
+		"chat_id":  chatID,
 		"exchange": exchange,
 		"options":  out,
 	}).Msg("Currencies requested")
@@ -521,9 +563,15 @@ func (cont *Controller) GetExchanges(c echo.Context) error {
 }
 
 func (cont *Controller) TestFunc(c echo.Context) error {
-	email := c.Get("email").(string)
+	// Retreive email and chatID
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"message": "Test",
 		"email":   email,
+		"chat_id": chatID,
 	})
 }

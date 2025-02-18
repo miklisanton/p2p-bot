@@ -12,6 +12,7 @@ import (
 	"p2pbot/internal/db/models"
 	"p2pbot/internal/rediscl"
 	"p2pbot/internal/requests"
+	"p2pbot/internal/utils"
 
 	"github.com/rs/zerolog/log"
 	"strconv"
@@ -26,8 +27,13 @@ import (
 // Unique order_id is stored in redis cache
 // returns payment link
 func (contr *Controller) CreateOrder(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -37,6 +43,7 @@ func (contr *Controller) CreateOrder(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
 	// generate order id with shortid
@@ -203,8 +210,13 @@ func (contr *Controller) ConfirmOrder(c echo.Context) error {
 }
 
 func (contr *Controller) GetSubscription(c echo.Context) error {
-	email := c.Get("email").(string)
-	u, err := contr.userService.GetUserByEmail(email)
+	// Retreive user
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
+	u, err := contr.userService.GetUser(email, chatID)
 	if err == sql.ErrNoRows {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"message": "User not found",
@@ -214,9 +226,11 @@ func (contr *Controller) GetSubscription(c echo.Context) error {
 		})
 	}
 	if err != nil {
+		log.Error().Err(err).Msg("Error getting user")
 		return err
 	}
-	// Get user subscription
+
+	// Get user's subscription
 	subscription, err := contr.subscriptionsService.GetByUserId(u.ID)
 	if err != nil {
 		return err

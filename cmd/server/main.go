@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/rs/zerolog/log"
 	"net/http"
-	//"p2pbot/internal/JWTConfig"
-	"crypto/tls"
-	"log"
 	"p2pbot/internal/app"
 	"p2pbot/internal/db/repository"
 	"p2pbot/internal/handlers"
@@ -12,10 +12,6 @@ import (
 	"p2pbot/internal/services"
 	"p2pbot/internal/utils"
 	"time"
-
-	//echojwt "github.com/labstack/echo-jwt/v4"
-	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -61,6 +57,8 @@ func main() {
 			"https://dev.localhost",
 			"https://localhost:443",
 			"https://localhost:8443",
+			"http://127.0.0.1",
+			"http://127.0.0.1:5173",
 		},
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
@@ -68,6 +66,7 @@ func main() {
 			echo.HeaderAccept,
 			echo.HeaderXCSRFToken,
 			echo.HeaderAuthorization,
+			"X-Client-Id",
 		},
 		AllowCredentials: true,
 	}))
@@ -84,11 +83,10 @@ func main() {
 
 	privateGroup := e.Group("/api/v1/private")
 
-	//config := JWTConfig.NewJWTConfig(cfg)
-	//privateGroup.Use(echojwt.WithConfig(config))
-	//privateGroup.Use(utils.AuthMiddleware)
-	privateGroup.Use(utils.CheckJWT)
-	privateGroup.Use(utils.ExtractEmail)
+	//JWT middleware
+	privateGroup.Use(utils.AuthMiddleware)
+	// Identify user
+	privateGroup.Use(utils.ExtractID)
 	// tracker routes
 	privateGroup.GET("/trackers", controller.GetTrackers)
 	privateGroup.POST("/trackers", controller.CreateTracker)
@@ -109,28 +107,10 @@ func main() {
 	publicGroup.POST("/subscriptions/callback", controller.ConfirmOrder)
 	privateGroup.GET("/subscriptions", controller.GetSubscription)
 
-	cert, err := tls.LoadX509KeyPair(cfg.Website.CertFile, cfg.Website.KeyFile)
-	if err != nil {
-		log.Fatalf("Failed to load X509 key pair: %v", err)
-	}
-	configTLS := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
 	server := &http.Server{
-		Addr:      ":" + cfg.Website.BackendPort,
-		Handler:   e,
-		TLSConfig: configTLS,
+		Addr:    ":" + cfg.Website.BackendPort,
+		Handler: e,
 	}
-
-	// reverse proxy
-	frontendServer := &http.Server{
-		Addr:      ":" + cfg.Website.Port,
-		Handler:   handlers.ProxyFrontend(cfg),
-		TLSConfig: configTLS,
-	}
-	go func() {
-		e.Logger.Fatal(frontendServer.ListenAndServeTLS("", ""))
-	}()
-
-	e.Logger.Fatal(server.ListenAndServeTLS("", ""))
+	log.Info().Msgf("Server is running on port %s", cfg.Website.BackendPort)
+	e.Logger.Fatal(server.ListenAndServe())
 }
