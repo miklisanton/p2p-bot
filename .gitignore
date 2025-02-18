@@ -2,3 +2,4 @@
 .env
 certs
 config.yaml
+.DS_Store
