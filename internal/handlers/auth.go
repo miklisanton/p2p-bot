@@ -136,6 +136,7 @@ func (cont *Controller) Login(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Debug().Interface("initParsed", initParsed).Msg("Parsed init data")
 	user, err := cont.userService.GetUserByChatID(initParsed.Chat.ID)
 	if err == sql.ErrNoRows {
 		// Create user if not found

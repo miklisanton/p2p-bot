@@ -151,7 +151,6 @@ func ExtractID(next echo.HandlerFunc) echo.HandlerFunc {
 
 func ExtractChatID(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		log.Debug().Interface("user", c.Get("user")).Msg("User")
 		user := c.Get("user").(*jwt.Token)
 		claims, ok := user.Claims.(*JWTConfig.JWTCustomClaims)
 		if !ok {
