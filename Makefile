@@ -17,6 +17,6 @@ vet:
 	go vet ./...
 
 volume: down
-	docker volume rm $$(basename $$PWD)_db_data || true
+	docker volume rm $$(basename $$PWD)_react-app || true
 down:
 	docker compose down
