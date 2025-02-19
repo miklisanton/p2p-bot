@@ -2,12 +2,14 @@ package bot
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
+	"os"
 	"p2pbot/internal/config"
 	"p2pbot/internal/rediscl"
 	"p2pbot/internal/services"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/lib/pq"
@@ -25,11 +27,18 @@ type Bot struct {
 }
 
 func NewBot(cfg *config.Config, userSvc *services.UserService, trackerSvc *services.TrackerService, exs []services.ExchangeI) (*Bot, error) {
-	api, err := tgbotapi.NewBotAPI(cfg.Telegram.APIkey)
+	var api *tgbotapi.BotAPI
+	var err error
+	if os.Getenv("MODE") == "production" {
+		api, err = tgbotapi.NewBotAPI(cfg.Telegram.APIkey)
+		api.Debug = false
+	} else {
+		api, err = tgbotapi.NewBotAPIWithAPIEndpoint(cfg.Telegram.APIkey, "https://api.telegram.org/bot%s/test/%s")
+		api.Debug = true
+	}
 	if err != nil {
 		return nil, err
 	}
-	api.Debug = true
 
 	return &Bot{
 		api:            api,
