@@ -142,7 +142,7 @@ func (cont *Controller) Login(c echo.Context) error {
 	}
 	log.Debug().Interface("initParsed", initParsed).Msg("Parsed init data")
 	user, err := cont.userService.GetUserByChatID(initParsed.User.ID)
-	if err == sql.ErrNoRows {
+	if err == sql.ErrNoRows || user == nil {
 		// Create user if not found
 		user = &models.User{
 			ChatID: &initParsed.User.ID,
@@ -174,7 +174,7 @@ func (cont *Controller) Login(c echo.Context) error {
 	}
 	// Issue JWT
 	claims := JWTConfig.JWTCustomClaims{
-		ChatID: initParsed.Chat.ID,
+		ChatID: *user.ChatID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 		},
