@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"p2pbot/internal/app"
 	"p2pbot/internal/db/repository"
 	"p2pbot/internal/rabbitmq"
@@ -34,7 +35,7 @@ func main() {
 
 	rabbit, err := rabbitmq.NewRabbitMQ(cfg)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		log.Fatal().Err(err).Msg("Error starting rabbitmq")
 	}
 
 	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)

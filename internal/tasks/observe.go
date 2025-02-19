@@ -42,9 +42,8 @@ func NewAdsObserver(
 
 func (ao *AdsObserver) Start(rate time.Duration, ctx context.Context) {
 	if err := ao.rabbitCl.DeclareExchange("notifications"); err != nil {
-		log.Error().Fields(map[string]interface{}{
-			"error": err.Error(),
-		}).Msg("Error declaring exchange")
+		log.Error().Err(err).Msg("Error declaring exchange")
+		return
 	}
 	ao.rabbitCl.Publish([]byte("Starting ads observer"))
 	// Check ads with given rate
