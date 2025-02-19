@@ -25,7 +25,7 @@ type Bot struct {
 }
 
 func NewBot(cfg *config.Config, userSvc *services.UserService, trackerSvc *services.TrackerService, exs []services.ExchangeI) (*Bot, error) {
-	api, err := tgbotapi.NewBotAPIWithAPIEndpoint(cfg.Telegram.APIkey, "https://api.telegram.org/bot%s/test/%s")
+	api, err := tgbotapi.NewBotAPI(cfg.Telegram.APIkey)
 	if err != nil {
 		return nil, err
 	}
