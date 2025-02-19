@@ -235,6 +235,17 @@ func (contr *Controller) GetSubscription(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	// Mark subscription as expired if it is expired
+	if subscription != nil {
+		var expired bool
+		if time.Now().Before(subscription.ValidUntil) {
+			expired = false
+		} else {
+			expired = true
+		}
+		subscription.Expired = &expired
+	}
+
 	return c.JSON(http.StatusOK, map[string]any{
 		"subscription": subscription,
 	})

@@ -136,11 +136,13 @@ func (cont *Controller) Login(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if user, err := cont.userService.GetUserByChatID(initParsed.Chat.ID); err == sql.ErrNoRows {
+	user, err := cont.userService.GetUserByChatID(initParsed.Chat.ID)
+	if err == sql.ErrNoRows {
 		// Create user if not found
-		id, err := cont.userService.CreateUser(&models.User{
+		user = &models.User{
 			ChatID: &initParsed.Chat.ID,
-		})
+		}
+		id, err := cont.userService.CreateUser(user)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create user")
 			return err
@@ -148,6 +150,21 @@ func (cont *Controller) Login(c echo.Context) error {
 		log.Info().Int("id", id).Msg("User created")
 	} else {
 		log.Info().Int("id", user.ID).Msg("User logged in")
+	}
+	// Get user's subscription
+	subscription, err := cont.subscriptionsService.GetByUserId(user.ID)
+	if err != nil {
+		return err
+	}
+	// Mark subscription as expired if it is expired
+	if subscription != nil {
+		var expired bool
+		if time.Now().Before(subscription.ValidUntil) {
+			expired = false
+		} else {
+			expired = true
+		}
+		subscription.Expired = &expired
 	}
 	// Issue JWT
 	claims := JWTConfig.JWTCustomClaims{
@@ -165,7 +182,8 @@ func (cont *Controller) Login(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
-		"message": "Logged in",
-		"token":   t,
+		"message":      "Logged in",
+		"token":        t,
+		"subscription": subscription,
 	})
 }

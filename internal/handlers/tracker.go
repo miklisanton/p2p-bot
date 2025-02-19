@@ -545,7 +545,11 @@ func (contr *Controller) GetCurrencies(c echo.Context) error {
 }
 
 func (cont *Controller) GetExchanges(c echo.Context) error {
-	email := c.Get("email").(string)
+	email, chatID, err := utils.RetreiveEmailNChatID(c)
+	if err != nil {
+		log.Error().Err(err).Msg("Error retreiving email and chatID")
+		return err
+	}
 	out := make([]string, 0)
 	for k := range cont.exchanges {
 		out = append(out, k)
@@ -553,6 +557,7 @@ func (cont *Controller) GetExchanges(c echo.Context) error {
 
 	log.Info().Fields(map[string]interface{}{
 		"email":     email,
+		"chat_id":   chatID,
 		"exchanges": out,
 	}).Msg("Exchanges requested")
 
