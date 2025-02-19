@@ -1,0 +1,112 @@
+services:
+  mini-app:
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    build:
+      context: tg-mini-app
+      dockerfile: Dockerfile
+    volumes:
+      - "./tg-mini-app:/react-app:delegated"
+      - "/react-app/node_modules"
+    networks:
+      - app-network
+  nginx:
+    restart: always
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - type: bind
+        source: ./certs
+        target: /etc/nginx/certs
+        read_only: true
+      - type: bind
+        source: ./nginx/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+    depends_on:
+      - web-server
+      - mini-app
+    networks:
+      - app-network
+  tg-bot:
+    build:
+      context: ./cmd/p2pbot
+    volumes:
+      - ./.env:/app/.env
+      - ./config.yaml:/app/config.yaml
+      - ./internal/db/migrations:/app/internal/db/migrations
+    depends_on:
+      - db
+      - rabbitmq
+      - cache
+    networks:
+      - app-network
+
+  web-server:
+    build:
+      context: ./cmd/server
+    volumes:
+      - ./.env:/app/.env
+      - ./config.yaml:/app/config.yaml
+      - ./internal/db/migrations:/app/internal/db/migrations
+      - ./certs:/app/certs
+    depends_on:
+      - db
+      - rabbitmq
+      - cache
+    networks:
+      - app-network
+
+  observer:
+    build:
+      context: ./cmd/observer
+    volumes:
+      - ./.env:/app/.env
+      - ./config.yaml:/app/config.yaml
+      - ./internal/db/migrations:/app/internal/db/migrations
+    depends_on:
+      - db
+      - rabbitmq
+      - cache
+    networks:
+      - app-network
+  observer-test:
+    build:
+      dockerfile: tests.Dockerfile
+    volumes:
+      - ./.env:/app/.env
+      - ./config.yaml:/app/config.yaml
+      - ./internal/db/migrations:/app/internal/db/migrations
+    depends_on:
+      - db
+      - rabbitmq
+      - cache
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: antonmiklis
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: p2p_bot
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+  cache:
+    image: redis/redis-stack
+    networks:
+      - app-network
+  rabbitmq:
+    image: rabbitmq:management
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+
+networks:
+  app-network:
+    external: true
