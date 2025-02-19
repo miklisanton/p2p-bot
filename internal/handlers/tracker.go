@@ -54,7 +54,7 @@ func (contr *Controller) GetTrackers(c echo.Context) error {
 	// Get limit
 	limit := c.QueryParam("limit")
 	if limit == "" {
-		limit = "10"
+		limit = "1000"
 	}
 	l, err := strconv.Atoi(limit)
 	if err != nil {
