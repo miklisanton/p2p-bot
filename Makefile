@@ -1,5 +1,8 @@
 .PHONY: deps build network vet
+
 all: vet build
+prod: vet volume build
+
 build: network
 	docker compose up --build -d
 network: deps
@@ -9,3 +12,8 @@ deps:
 
 vet:
 	go vet ./...
+
+volume: down
+	docker volume rm p2phub-backend_db_data
+down:
+	docker compose down
