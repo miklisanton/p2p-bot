@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 	"p2pbot/internal/JWTConfig"
@@ -125,23 +126,26 @@ func (cont *Controller) Login(c echo.Context) error {
 	auth := c.Request().Header.Get("Authorization")
 	data := strings.Split(auth, " ")
 	if len(data) != 2 || data[0] != "tma" {
+		log.Error().Err(fmt.Errorf("no tma prefix")).Msg("Invalid auth header")
 		return echo.ErrUnauthorized
 	}
 	// Validate initdata
 	if err := initdata.Validate(data[1], cont.BotSecret, 24*time.Hour); err != nil {
+		log.Error().Err(err).Msg("Invalid init data")
 		return echo.ErrUnauthorized
 	}
 	// Find user in database
 	initParsed, err := initdata.Parse(data[1])
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse init data")
 		return err
 	}
 	log.Debug().Interface("initParsed", initParsed).Msg("Parsed init data")
-	user, err := cont.userService.GetUserByChatID(initParsed.Chat.ID)
+	user, err := cont.userService.GetUserByChatID(initParsed.User.ID)
 	if err == sql.ErrNoRows {
 		// Create user if not found
 		user = &models.User{
-			ChatID: &initParsed.Chat.ID,
+			ChatID: &initParsed.User.ID,
 		}
 		id, err := cont.userService.CreateUser(user)
 		if err != nil {
@@ -155,6 +159,7 @@ func (cont *Controller) Login(c echo.Context) error {
 	// Get user's subscription
 	subscription, err := cont.subscriptionsService.GetByUserId(user.ID)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get subscription")
 		return err
 	}
 	// Mark subscription as expired if it is expired
