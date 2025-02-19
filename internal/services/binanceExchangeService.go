@@ -98,7 +98,7 @@ func (ex BinanceExchange) GetBestAdv(currency, side string, paymentMethods []str
 	payload := BinancePayload{
 		Fiat:                      currency,
 		Page:                      1,
-		Rows:                      10,
+		Rows:                      20,
 		TradeType:                 side,
 		Asset:                     "USDT",
 		Countries:                 []string{},
@@ -194,7 +194,7 @@ func (ex BinanceExchange) RequestData(page int, currency, side string, pMethods 
 	payload := BinancePayload{
 		Fiat:                      currency,
 		Page:                      page,
-		Rows:                      10,
+		Rows:                      20,
 		TradeType:                 side,
 		Asset:                     "USDT",
 		Countries:                 []string{},
