@@ -122,15 +122,14 @@ func (contr *Controller) CreateOrder(c echo.Context) error {
 		"uuid":     respStruct.Result.Uuid,
 	}).Msg("Invoice created")
 
-	return c.Redirect(http.StatusSeeOther, respStruct.Result.Url)
-	//	return c.JSON(http.StatusOK, map[string]any{
-	//		"message": "Invoice created",
-	//		"invoice": map[string]any{
-	//			"url":      respStruct.Result.Url,
-	//			"order_id": respStruct.Result.OrderID,
-	//			"uuid":     respStruct.Result.Uuid,
-	//		},
-	//	})
+	return c.JSON(http.StatusOK, map[string]any{
+		"message": "Invoice created",
+		"invoice": map[string]any{
+			"url":      respStruct.Result.Url,
+			"order_id": respStruct.Result.OrderID,
+			"uuid":     respStruct.Result.Uuid,
+		},
+	})
 }
 
 // ConfirmOrder is a webhook endpoint for cryptomus gateway
