@@ -60,6 +60,7 @@ type Adv struct {
 	MinSingleTransAmount string        `json:"minSingleTransAmount"`
 	TradeMethods         []TradeMethod `json:"tradeMethods"`
 	IsTradable           bool          `json:"isTradable"`
+	ID                   string        `json:"advNo"`
 }
 
 type TradeMethod struct {
@@ -481,4 +482,8 @@ func (i DataItem) GetPaymentMethods() []string {
 		out = append(out, method.Identifier)
 	}
 	return out
+}
+
+func (i DataItem) GetId() string {
+	return i.Adv.ID
 }

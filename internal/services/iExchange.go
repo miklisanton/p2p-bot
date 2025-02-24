@@ -15,6 +15,7 @@ type ExchangeI interface {
 // P2PItemI is an interface for exchage p2p api responses
 type P2PItemI interface {
 	GetPrice() float64
+	GetId() string
 	GetName() string
 	GetQuantity() (float64, float64, float64)
 	GetPaymentMethods() []string

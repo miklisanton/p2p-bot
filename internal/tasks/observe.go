@@ -115,24 +115,17 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) {
 				// if advertisements payment methods contain one of the tracker payment methods
 				if ad.GetName() != tracker.Username && ad.GetPrice() != tracker.Price {
 					// if advertisement name doesnt match tracker username
-					// Notify user
-					if !tracker.WaitingUpdate {
+					if notified, err := ao.CheckAdNotified(tracker.UserID, ad); err != nil {
+						log.Error().Msg("Error checking if ad is notified")
+					} else if !notified {
+						log.Info().Int64("tracker_id", tracker.ID).Str("adv_id", ad.GetId()).Float64("price", ad.GetPrice()).Msg("Sending notification")
 						ao.Notify(tracker, ad)
+					} else {
+						log.Info().Int64("tracker_id", tracker.ID).Str("adv_id", ad.GetId()).Float64("price", ad.GetPrice()).Msg("Notification already sent, skipping")
 					}
-					tracker.WaitingUpdate = true
-					if err := ao.trackerService.CreateTracker(tracker); err != nil {
-						log.Printf("Error updating tracker waiting update: %s", err)
-					}
-					return
 				} else {
-					// Tracked advertisement is the best advertisement across payment methods
-					// Set outbidded to false
-					tracker.WaitingUpdate = false
-					tracker.Price = ad.GetPrice()
-					log.Printf("User %s is not outbidded on %s", tracker.Username, tracker.Exchange)
-					if err := ao.trackerService.CreateTracker(tracker); err != nil {
-						log.Printf("Error updating tracker price: %s", err)
-					}
+					// Tracked advertisement found, return
+					log.Debug().Int64("tracker_id", tracker.ID).Msg("found tracked ad")
 					return
 				}
 			}
@@ -176,6 +169,11 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) {
 }
 
 func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
+	// Set notified for ad+price combination
+	ctx := rediscl.RDB.Ctx
+	rediscl.RDB.Client.Set(ctx, fmt.Sprintf("user%d:%s:%f", tracker.UserID, ad.GetId(), ad.GetPrice()), "true", time.Hour*12)
+	log.Debug().Str("key", fmt.Sprintf("user%d:%s:%f", tracker.UserID, ad.GetId(), ad.GetPrice())).Msg("Redis key set")
+
 	user, err := ao.userService.GetUserByID(tracker.UserID)
 	if err != nil {
 		log.Error().Msg("Error retreiving user")
@@ -238,4 +236,17 @@ func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
 			}).Msg("Error publishing message")
 		}
 	}
+}
+
+func (ao *AdsObserver) CheckAdNotified(uid int, ad services.P2PItemI) (bool, error) {
+	ctx := rediscl.RDB.Ctx
+	notified := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("user%d:%s:%f", uid, ad.GetId(), ad.GetPrice()))
+	log.Debug().Str("value", notified.Val()).Msg("Redis value retreived")
+	if notified.Err() == redis.Nil || notified.Val() == "" {
+		return false, nil
+	}
+	if notified.Err() != nil {
+		return false, notified.Err()
+	}
+	return notified.Val() == "true", nil
 }

@@ -42,6 +42,7 @@ type Result struct {
 }
 
 type Item struct {
+	Id                string   `json:"id"`
 	NickName          string   `json:"nickName"`
 	Price             string   `json:"price"`
 	Quantity          string   `json:"quantity"`
@@ -422,4 +423,8 @@ func (ex *BybitExchange) GetCachedCurrencies() ([]string, error) {
 
 func (i Item) GetPaymentMethods() []string {
 	return i.Payments
+}
+
+func (i Item) GetId() string {
+	return i.Id
 }
