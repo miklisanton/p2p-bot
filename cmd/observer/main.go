@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/rs/zerolog/log"
 	"p2pbot/internal/app"
 	"p2pbot/internal/db/repository"
@@ -14,10 +13,7 @@ import (
 )
 
 func main() {
-	// wait until all services are up
-	time.Sleep(10 * time.Second)
 	DB, cfg, err := app.Init()
-	fmt.Println("DB: ", DB)
 	if err != nil {
 		panic(err)
 	}

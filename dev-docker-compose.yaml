@@ -52,9 +52,12 @@ services:
       - ./internal/db/migrations:/app/internal/db/migrations
       - ./certs:/app/certs
     depends_on:
-      - db
-      - rabbitmq
-      - cache
+      db:
+        condition: service_started
+      cache:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -66,9 +69,12 @@ services:
       - ./config.yaml:/app/config.yaml
       - ./internal/db/migrations:/app/internal/db/migrations
     depends_on:
-      - db
-      - rabbitmq
-      - cache
+      db:
+        condition: service_started
+      cache:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
   observer-test:
@@ -79,9 +85,12 @@ services:
       - ./config.yaml:/app/config.yaml
       - ./internal/db/migrations:/app/internal/db/migrations
     depends_on:
-      - db
-      - rabbitmq
-      - cache
+      db:
+        condition: service_started
+      cache:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -103,6 +112,11 @@ services:
       - 8001:8001
   rabbitmq:
     image: rabbitmq:management
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
