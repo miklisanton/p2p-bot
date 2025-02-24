@@ -96,6 +96,11 @@ services:
       - app-network
   rabbitmq:
     image: rabbitmq:management
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
