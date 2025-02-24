@@ -99,6 +99,8 @@ services:
     image: redis/redis-stack
     networks:
       - app-network
+    ports:
+      - 8001:8001
   rabbitmq:
     image: rabbitmq:management
     networks:
