@@ -30,7 +30,7 @@ func main() {
 	binance := services.NewBinanceExchange(cfg)
 	bybit := services.NewBybitExcahnge(cfg)
 
-	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
+	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 
 	controller := handlers.NewController(
 		userService,

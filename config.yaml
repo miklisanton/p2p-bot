@@ -1,16 +1,18 @@
 database:
   host: db
   port: 5432
-  name: p2p_bot
-  user: antonmiklis
+  name: ${DB_NAME}
+  user: ${DB_USERNAME}
   password: ${DB_PASSWORD}
   ssl: disable
 redis:
   host: cache
   port: 6379
+  password: ${REDIS_PASSWORD}
+  username: ${REDIS_USERNAME}
   db: 0
 rabbitmq:
-  url: amqp://guest:guest@rabbitmq:5672/
+  url: amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
 telegram:
   api-key: ${BOT_TOKEN}
   bot-link: ${BOT_LINK}
@@ -25,8 +27,8 @@ website:
   cert-file: /app/certs/server.crt
   front-url: http://front:3000
   jwt-secret: ${JWT_SECRET}
-  subscription-price: 0.15
+  subscription-price: 10
   subscription-currency: USD
   trial:
     days_window: 7
-    max_notifications: 2
+    max_notifications: 7

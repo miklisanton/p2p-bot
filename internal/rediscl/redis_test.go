@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 
 	DB.Ping()
 
-	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
+	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port, "")
 	if client == nil {
 		panic("client is nil")
 	}

@@ -26,7 +26,7 @@ func main() {
 	trackerService := services.NewTrackerService(trackerRepo)
 	userService := services.NewUserService(userRepo)
 
-	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
+	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 
 	//Supported exchanges
 	binance := services.NewBinanceExchange(cfg)

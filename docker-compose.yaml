@@ -83,9 +83,9 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: antonmiklis
+      POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: p2p_bot
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
@@ -94,8 +94,16 @@ services:
     image: redis/redis-stack
     networks:
       - app-network
+    ports:
+      - 8001:8001
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD}"
   rabbitmq:
     image: rabbitmq:management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s

@@ -13,12 +13,12 @@ type RedisClient struct {
 
 var RDB *RedisClient
 
-func InitRedisClient(host, port string) {
+func InitRedisClient(host, port, password string) {
 	RDB = &RedisClient{
 		Ctx: context.Background(),
 		Client: redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%s", host, port),
-			Password: "",
+			Password: password,
 			DB:       0,
 		}),
 	}

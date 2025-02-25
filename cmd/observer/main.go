@@ -34,7 +34,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Error starting rabbitmq")
 	}
 
-	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
+	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Password)
 
 	observer := tasks.NewAdsObserver(
 		trackerService,

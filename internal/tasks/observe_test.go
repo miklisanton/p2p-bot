@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 		fmt.Println("Error: ", err)
 	}
 
-	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
+	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port, "")
 
 	observer = NewAdsObserver(trackerService, userService, subscriptionService, exs, rabbit, 7, 7)
 
