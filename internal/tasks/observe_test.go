@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 
 	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
 
-	observer = NewAdsObserver(trackerService, userService, subscriptionService, exs, rabbit)
+	observer = NewAdsObserver(trackerService, userService, subscriptionService, exs, rabbit, 7, 7)
 
 	m.Run()
 }

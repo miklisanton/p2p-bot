@@ -27,3 +27,6 @@ website:
   jwt-secret: ${JWT_SECRET}
   subscription-price: 0.15
   subscription-currency: USD
+  trial:
+    days_window: 7
+    max_notifications: 2

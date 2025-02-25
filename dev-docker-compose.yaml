@@ -37,9 +37,12 @@ services:
       - ./config.yaml:/app/config.yaml
       - ./internal/db/migrations:/app/internal/db/migrations
     depends_on:
-      - db
-      - rabbitmq
-      - cache
+      db:
+        condition: service_started
+      cache:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
 

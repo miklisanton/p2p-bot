@@ -23,6 +23,8 @@ type AdsObserver struct {
 	userService          *services.UserService
 	exchanges            []services.ExchangeI
 	rabbitCl             *rabbitmq.RabbitMQ
+	windowDays           time.Duration
+	maxNotifications     int
 }
 
 func NewAdsObserver(
@@ -30,15 +32,21 @@ func NewAdsObserver(
 	userService *services.UserService,
 	subscriptionsService *services.SubscriptionService,
 	exchanges []services.ExchangeI,
-	rabbit *rabbitmq.RabbitMQ) *AdsObserver {
+	rabbit *rabbitmq.RabbitMQ,
+	days int,
+	limit int) *AdsObserver {
 	return &AdsObserver{
 		trackerService:       trackerService,
 		userService:          userService,
 		subscriptionsService: subscriptionsService,
 		exchanges:            exchanges,
 		rabbitCl:             rabbit,
+		windowDays:           time.Duration(days),
+		maxNotifications:     limit,
 	}
 }
+
+const LimitMessage = "You have reached your notification limit for this week. Buy a susbcription to get unlimited notifications."
 
 func (ao *AdsObserver) Start(rate time.Duration, ctx context.Context) {
 	if err := ao.rabbitCl.DeclareExchange("notifications"); err != nil {
@@ -95,7 +103,8 @@ func (ao *AdsObserver) CheckAdsOnExchange(ex services.ExchangeI, idsMap map[stri
 				return err
 			}
 			for _, id := range ids {
-				ao.CheckTracker(ads, id)
+				isPresent := ao.CheckTracker(ads, id)
+				log.Debug().Bool("isPresent", isPresent).Int("id", id).Msg("tracker checked")
 			}
 			return nil
 		}()
@@ -104,10 +113,14 @@ func (ao *AdsObserver) CheckAdsOnExchange(ex services.ExchangeI, idsMap map[stri
 	log.Info().Msg("Finished checking ads on " + ex.GetName())
 }
 
-func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) {
+// Checks if tracked advertisement is outbided
+// and sends notification
+// if advertisement is missing, return false
+// if advertisement is present, return true
+func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool {
 	tracker, err := ao.trackerService.GetTrackerById(trackerID)
 	if err != nil {
-		return
+		return false
 	}
 	if tracker.IsAggregated {
 		for _, ad := range ads {
@@ -126,10 +139,11 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) {
 				} else {
 					// Tracked advertisement found, return
 					log.Debug().Int64("tracker_id", tracker.ID).Msg("found tracked ad")
-					return
+					return true
 				}
 			}
 		}
+		return false
 	} else {
 		for _, pMethod := range tracker.Payment {
 			for _, ad := range ads {
@@ -165,6 +179,7 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) {
 				}
 			}
 		}
+		return false
 	}
 }
 
@@ -210,30 +225,48 @@ func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
 		ctx := rediscl.RDB.Ctx
 		count := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("notification:%d", user.ID))
 		if count.Err() == redis.Nil {
-			rediscl.RDB.Client.Set(ctx, fmt.Sprintf("notification:%d", user.ID), 1, time.Hour*24*7)
+			rediscl.RDB.Client.Set(ctx, fmt.Sprintf("notification:%d", user.ID), 1, time.Hour*24*ao.windowDays)
 		} else {
 			c, err := count.Int()
 			if err != nil {
 				log.Error().Msg("Error getting notification count")
 				return
 			}
-			if c > 3 {
+			if c > ao.maxNotifications {
 				log.Info().Msg(fmt.Sprintf("User %d has reached notification limit", user.ID))
-				return
+				// Send notification to user that he has reached limit
+				if flag, err := ao.CheckTrialNotified(user.ID); err != nil {
+					log.Error().Msg("Error checking if user is notified about trial limit")
+					return
+				} else if !flag {
+					// Create notification
+					sn := services.StringNotification{
+						ChatID: *user.ChatID,
+						Msg:    LimitMessage,
+					}
+					snJson, err := json.Marshal(sn)
+					if err != nil {
+						log.Error().Msg("Error converting user to json")
+					}
+					if err := ao.rabbitCl.Publish(snJson); err != nil {
+						log.Error().Err(err).Msg("Error publishing message")
+					}
+					rediscl.RDB.Client.Set(ctx, fmt.Sprintf("trial:%d", user.ID), "true", time.Hour*24*ao.windowDays)
+					return
+				} else {
+					log.Info().Int("uid", user.ID).Msg("User already notified about trial limit")
+					return
+				}
 			}
 		}
 		if err := ao.rabbitCl.Publish([]byte(nJson)); err != nil {
-			log.Error().Fields(map[string]interface{}{
-				"error": err.Error(),
-			}).Msg("Error publishing message")
+			log.Error().Err(err).Msg("Error publishing message")
 		}
 		rediscl.RDB.Client.Incr(ctx, fmt.Sprintf("notification:%d", user.ID))
 	} else {
 		// Just publish notification if user has active subscription
 		if err := ao.rabbitCl.Publish([]byte(nJson)); err != nil {
-			log.Error().Fields(map[string]interface{}{
-				"error": err.Error(),
-			}).Msg("Error publishing message")
+			log.Error().Err(err).Msg("Error publishing message")
 		}
 	}
 }
@@ -241,6 +274,19 @@ func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
 func (ao *AdsObserver) CheckAdNotified(uid int, ad services.P2PItemI) (bool, error) {
 	ctx := rediscl.RDB.Ctx
 	notified := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("user%d:%s:%f", uid, ad.GetId(), ad.GetPrice()))
+	log.Debug().Str("value", notified.Val()).Msg("Redis value retreived")
+	if notified.Err() == redis.Nil || notified.Val() == "" {
+		return false, nil
+	}
+	if notified.Err() != nil {
+		return false, notified.Err()
+	}
+	return notified.Val() == "true", nil
+}
+
+func (ao *AdsObserver) CheckTrialNotified(uid int) (bool, error) {
+	ctx := rediscl.RDB.Ctx
+	notified := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("trial:%d", uid))
 	log.Debug().Str("value", notified.Val()).Msg("Redis value retreived")
 	if notified.Err() == redis.Nil || notified.Val() == "" {
 		return false, nil

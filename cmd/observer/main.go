@@ -36,8 +36,15 @@ func main() {
 
 	rediscl.InitRedisClient(cfg.Redis.Host, cfg.Redis.Port)
 
-	observer := tasks.NewAdsObserver(trackerService, userService, subscriptionService, exs, rabbit)
-
+	observer := tasks.NewAdsObserver(
+		trackerService,
+		userService,
+		subscriptionService,
+		exs,
+		rabbit,
+		cfg.Website.Trial.Window,
+		cfg.Website.Trial.Limit,
+	)
 	ctx := context.Background()
 	observer.Start(1*time.Minute, ctx)
 }

@@ -3,48 +3,60 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v3"
-	"log"
 	"os"
 	"regexp"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/joho/godotenv"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	Database struct {
-		Host     string `yaml:"host"`
-		Port     string `yaml:"port"`
-		Name     string `yaml:"name"`
-		User     string `yaml:"user"`
-		Password string `yaml:"password"`
-		SSL      string `yaml:"ssl"`
-	}
+		Host     string `yaml:"host" validate:"required"`
+		Port     string `yaml:"port" validate:"required"`
+		Name     string `yaml:"name" validate:"required"`
+		User     string `yaml:"user" validate:"required"`
+		Password string `yaml:"password" validate:"required"`
+		SSL      string `yaml:"ssl" validate:"required"`
+	} `yaml:"database" validate:"required"`
+
 	Redis struct {
-		Host string `yaml:"host"`
-		Port string `yaml:"port"`
-	}
+		Host string `yaml:"host" validate:"required"`
+		Port string `yaml:"port" validate:"required"`
+	} `yaml:"redis" validate:"required"`
+
 	RabbitMQ struct {
-		URL string `yaml:"url"`
-	}
+		URL string `yaml:"url" validate:"required"`
+	} `yaml:"rabbitmq" validate:"required"`
+
 	Telegram struct {
-		APIkey     string `yaml:"api-key"`
-		InviteLink string `yaml:"bot-link"`
-		MiniAppURL string `yaml:"mini-app"`
-	}
+		APIkey     string `yaml:"api-key" validate:"required"`
+		InviteLink string `yaml:"bot-link" validate:"required"`
+		MiniAppURL string `yaml:"mini-app" validate:"required"`
+	} `yaml:"telegram" validate:"required"`
+
 	Exchange struct {
-		MaxRetries int `yaml:"max-retries"`
-		RetryDelay int `yaml:"retry-delay"`
-	}
+		MaxRetries int `yaml:"max-retries" validate:"required"`
+		RetryDelay int `yaml:"retry-delay" validate:"required"`
+	} `yaml:"exchange" validate:"required"`
+
 	Website struct {
-		Port        string `yaml:"port"`
-		BackendPort string `yaml:"backend-port"`
-		CertFile    string `yaml:"cert-file"`
-		KeyFile     string `yaml:"key-file"`
-		FrontURL    string `yaml:"front-url"`
-		JWTSecret   string `yaml:"jwt-secret"`
-		SubPrice    string `yaml:"subscription-price"`
-		SubCurrency string `yaml:"subscription-currency"`
-	}
+		Port        string `yaml:"port" validate:"required"`
+		BackendPort string `yaml:"backend-port" validate:"required"`
+		CertFile    string `yaml:"cert-file" validate:"required"`
+		KeyFile     string `yaml:"key-file" validate:"required"`
+		FrontURL    string `yaml:"front-url" validate:"required"`
+		JWTSecret   string `yaml:"jwt-secret" validate:"required"`
+		SubPrice    string `yaml:"subscription-price" validate:"required"`
+		SubCurrency string `yaml:"subscription-currency" validate:"required"`
+
+		Trial struct {
+			Window int `yaml:"days_window" validate:"required"`
+			Limit  int `yaml:"max_notifications" validate:"required"`
+		} `yaml:"trial" validate:"required"`
+	} `yaml:"website" validate:"required"`
 }
 
 func NewConfig(path string) (*Config, error) {
@@ -67,12 +79,19 @@ func NewConfig(path string) (*Config, error) {
 
 	file, err = replaceEnvVars(file)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	err = yaml.Unmarshal(file, &config)
 	if err != nil {
-		log.Fatalf("Error unmarshalling YAML: %v", err)
+		return nil, err
+	}
+	validate := validator.New()
+	if err := validate.Struct(config); err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			log.Printf("Error in field %s: %s", err.Field(), err.Tag())
+		}
+		return nil, fmt.Errorf("config validation failed")
 	}
 
 	return config, nil

@@ -13,6 +13,11 @@ type Notification struct {
 	Currency string   `json:"currency"`
 }
 
+type StringNotification struct {
+	ChatID int64  `json:"chat_id"`
+	Msg    string `json:"message"`
+}
+
 func (n *Notification) UnmarshalJSON(data []byte) error {
 	// Define a temporary structure for the concrete type
 	type Alias Notification
