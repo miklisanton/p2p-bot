@@ -116,7 +116,7 @@ func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
 		return nil
 	} else {
 		// Send welcome message
-		bot.SendMessage(msg.Chat.ID, "Welcome to P2P Hub.\n Press Trackers to launch the mini app")
+		bot.SendMessage(msg.Chat.ID, "Welcome to P2P Hub.\nCreate tracker and receive instant notifications when somebody places an ad above yours.\nSupport: @p2phubb")
 		return nil
 	}
 }
