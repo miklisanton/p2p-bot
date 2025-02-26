@@ -40,6 +40,10 @@ func (s *TrackerService) ValidateTracker(tracker *models.Tracker, staging bool) 
 		return fmt.Errorf("Side must be BUY/SELL")
 	}
 
+	if tracker.Username == "" {
+		return fmt.Errorf("Username must be set")
+	}
+
 	tracker.Currency = strings.ToUpper(tracker.Currency)
 	if len(tracker.Currency) != 3 {
 		return fmt.Errorf("Currency ticker must be 3 symbols long, EUR for example")
