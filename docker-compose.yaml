@@ -106,7 +106,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
     networks:
