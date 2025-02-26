@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"p2pbot/internal/db/models"
 	"p2pbot/internal/db/repository"
+	"time"
 )
 
 type SubscriptionService struct {
@@ -27,7 +28,12 @@ func (s *SubscriptionService) AddMonth(subscription *models.Subscription) error 
 	if subscription.Id == 0 {
 		return fmt.Errorf("subscription does not exist")
 	}
-	subscription.ValidUntil = subscription.ValidUntil.AddDate(0, 1, 0)
+	if subscription.ValidUntil.After(time.Now()) {
+		subscription.ValidUntil = subscription.ValidUntil.AddDate(0, 1, 0)
+	} else {
+		subscription.ValidUntil = time.Now().AddDate(0, 1, 0)
+	}
+
 	return s.repo.Save(subscription)
 }
 

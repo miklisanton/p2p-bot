@@ -188,7 +188,9 @@ func (contr *Controller) ConfirmOrder(c echo.Context) error {
 
 	if subscription == nil {
 		err := contr.subscriptionsService.Create(&models.Subscription{
-			User_id: uid,
+			Created_at: time.Now(),
+			ValidUntil: time.Now().AddDate(0, 1, 0),
+			User_id:    uid,
 		})
 		if err != nil {
 			return err
