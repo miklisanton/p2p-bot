@@ -39,13 +39,23 @@ func (bot *Bot) HandleTrackerNotification(msg amqp.Delivery) {
 	q, minA, maxA := n.Data.GetQuantity()
 	price := n.Data.GetPrice()
 	name := n.Data.GetName()
-	pms := strings.Join(n.Data.GetPaymentMethods(), ", ")
+	// Obtain payment methods id to name translation
+	var translation []services.PaymentMethod
+	for _, ex := range bot.exchanges {
+		if strings.ToLower(ex.GetName()) == n.Exchange {
+			translation, _ = ex.GetCachedPaymentMethods(n.Currency)
+			log.Debug().Interface("translation", translation).Msg("Translation")
+			break
+		}
+	}
+
+	pms := strings.Join(n.Data.GetMethodsPrintable(translation), ", ")
 
 	template := `Your %s %s advertisement on %s was outbided by %s.
 Payment methods: %s.
-Quantity: %.2fUSDT.
-Min. amount: %.1f%s | Max. amount: %.1f%s.
-Price: %.2f%s`
+%.1f USDT
+%.1f - %.1f %s
+%.3f %s/USDT`
 	message := fmt.Sprintf(
 		template,
 		n.Currency,
@@ -55,7 +65,6 @@ Price: %.2f%s`
 		pms,
 		q,
 		minA,
-		n.Currency,
 		maxA,
 		n.Currency,
 		price,

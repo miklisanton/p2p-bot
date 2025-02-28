@@ -428,3 +428,16 @@ func (i Item) GetPaymentMethods() []string {
 func (i Item) GetId() string {
 	return i.Id
 }
+
+func (i Item) GetMethodsPrintable(translation []PaymentMethod) []string {
+
+	out := make([]string, 0)
+	for _, method := range i.Payments {
+		for _, t := range translation {
+			if t.Id == method {
+				out = append(out, t.Name)
+			}
+		}
+	}
+	return out
+}

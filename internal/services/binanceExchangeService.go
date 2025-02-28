@@ -487,3 +487,19 @@ func (i DataItem) GetPaymentMethods() []string {
 func (i DataItem) GetId() string {
 	return i.Adv.ID
 }
+
+func (i DataItem) GetMethodsPrintable(translation []PaymentMethod) []string {
+	out := make([]string, 0)
+	for _, method := range i.Adv.TradeMethods {
+		for _, t := range translation {
+			if t.Id == method.Identifier {
+				if t.Name == "" {
+					out = append(out, method.Identifier)
+				} else {
+					out = append(out, t.Name)
+				}
+			}
+		}
+	}
+	return out
+}

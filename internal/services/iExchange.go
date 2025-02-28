@@ -19,6 +19,7 @@ type P2PItemI interface {
 	GetName() string
 	GetQuantity() (float64, float64, float64)
 	GetPaymentMethods() []string
+	GetMethodsPrintable([]PaymentMethod) []string
 }
 
 // PaymentMethod is a struct for payment methods

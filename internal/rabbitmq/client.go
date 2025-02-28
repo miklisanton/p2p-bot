@@ -2,7 +2,6 @@ package rabbitmq
 
 import (
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/rs/zerolog/log"
 	"p2pbot/internal/config"
 )
 
@@ -13,10 +12,6 @@ type RabbitMQ struct {
 }
 
 func NewRabbitMQ(cfg *config.Config) (*RabbitMQ, error) {
-	log.Debug().Fields(map[string]interface{}{
-		"url": cfg.RabbitMQ.URL,
-	}).Msg("Connecting to RabbitMQ")
-
 	conn, err := amqp.Dial(cfg.RabbitMQ.URL)
 	if err != nil {
 		return nil, err
