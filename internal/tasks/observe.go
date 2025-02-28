@@ -113,7 +113,8 @@ func (ao *AdsObserver) CheckAdsOnExchange(ex services.ExchangeI, idsMap map[stri
 	log.Info().Msg("Finished checking ads on " + ex.GetName())
 }
 
-// Checks if tracked advertisement is outbided
+// Checks if tracked ad is present in ads slice
+// checks if tracked advertisement is outbided
 // and sends notification
 // if advertisement is missing, return false
 // if advertisement is present, return true
@@ -123,6 +124,11 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool
 		return false
 	}
 	if tracker.IsAggregated {
+		if !ao.IsAdPresent(tracker, ads) {
+			log.Debug().Int64("tracker_id", tracker.ID).Msg("advertisement not found")
+			return false
+		}
+
 		for _, ad := range ads {
 			if utils.ComparePaymentMethods(ad.GetPaymentMethods(), tracker.Payment) {
 				// if advertisements payment methods contain one of the tracker payment methods
@@ -137,14 +143,24 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool
 						log.Info().Int64("tracker_id", tracker.ID).Str("adv_id", ad.GetId()).Float64("price", ad.GetPrice()).Msg("Notification already sent, skipping")
 					}
 				} else {
-					// Tracked advertisement found, return
+					// Tracked advertisement found
 					log.Debug().Int64("tracker_id", tracker.ID).Msg("found tracked ad")
+					// Update tracker price
+					tracker.Price = ad.GetPrice()
+					if err := ao.trackerService.CreateTracker(tracker); err != nil {
+						log.Printf("Error updating tracker price: %s", err)
+					} else {
+						log.Debug().Fields(map[string]interface{}{
+							"id": tracker.ID,
+						}).Msg("tracker updated")
+					}
 					return true
 				}
 			}
 		}
 		return false
 	} else {
+		// TODO reimplement this
 		for _, pMethod := range tracker.Payment {
 			for _, ad := range ads {
 				if utils.Contains(ad.GetPaymentMethods(), pMethod.Id) {
@@ -295,4 +311,13 @@ func (ao *AdsObserver) CheckTrialNotified(uid int) (bool, error) {
 		return false, notified.Err()
 	}
 	return notified.Val() == "true", nil
+}
+
+func (ao *AdsObserver) IsAdPresent(tracker *models.Tracker, ads []services.P2PItemI) bool {
+	for _, ad := range ads {
+		if ad.GetName() == tracker.Username && utils.ComparePaymentMethods(ad.GetPaymentMethods(), tracker.Payment) {
+			return true
+		}
+	}
+	return false
 }
