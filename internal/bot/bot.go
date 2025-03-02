@@ -4,16 +4,11 @@ import (
 	"fmt"
 	"os"
 	"p2pbot/internal/config"
-	"p2pbot/internal/rediscl"
 	"p2pbot/internal/services"
-	"strconv"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
 )
 
 type Bot struct {
@@ -73,51 +68,6 @@ func (bot *Bot) Start() {
 		default:
 			bot.SendMessage(chatID, "Unknown command")
 		}
-	}
-}
-
-func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
-	args := strings.Split(msg.CommandArguments(), " ")
-	if len(args) == 1 && args[0] != "" {
-		// Handle telegram connect
-		// Extract unique_code from /start command
-		code := args[0]
-		// Get user_id from redis, telegram_codes:unique_code
-		ctx := rediscl.RDB.Ctx
-		userID, err := rediscl.RDB.Client.Get(ctx, "telegram_codes:"+code).Result()
-		if userID == "" || err == redis.Nil {
-			bot.SendMessage(msg.Chat.ID, "Link doesn't exist or expired")
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		// Set chat_id for user
-		uid, err := strconv.Atoi(userID)
-		if err != nil {
-			return err
-		}
-		user, err := bot.userService.GetUserByID(uid)
-		if err != nil {
-			return err
-		}
-		user.ChatID = &msg.Chat.ID
-		if _, err := bot.userService.CreateUser(user); err != nil {
-			if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
-				bot.SendMessage(msg.Chat.ID, "This telegram account is already connected. Contact support @p2phubb")
-			}
-			return err
-		}
-		// Delete unique_code from redis
-		if err := rediscl.RDB.Client.Del(ctx, "telegram_codes:"+code).Err(); err != nil {
-			return err
-		}
-		bot.SendMessage(msg.Chat.ID, "Successfully connected")
-		return nil
-	} else {
-		// Send welcome message
-		bot.SendMessage(msg.Chat.ID, "Welcome to P2P Hub.\nCreate tracker and receive instant notifications when somebody places an ad above yours.\nSupport: @p2phubb")
-		return nil
 	}
 }
 

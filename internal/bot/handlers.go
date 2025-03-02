@@ -3,12 +3,35 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
+	"p2pbot/internal/rediscl"
 	"p2pbot/internal/services"
+	"strconv"
 	"strings"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+const WelcomeMessage = `🇬🇧Welcome!
+To start using the tracker:
+- Click "Create Tracker"
+- Select a platform (Binance or Bybit)
+- Enter your username on the chosen platform
+- Specify the currency of your ad
+
+Need help? Contact Support: @p2phubb
+
+🇷🇺Добро пожаловать!
+Чтобы начать использовать трекер:
+- Нажмите "Create Tracker"
+- Выберите площадку (Binance или Bybit)
+- Введите имя пользователя на выбранной платформе
+- Укажите валюту вашего объявления
+
+Нужна помощь? Свяжитесь с поддержкой: @p2phubb`
 
 func (bot *Bot) HandleNotification(msg amqp.Delivery) {
 	if msg.ContentType == "application/json" {
@@ -79,4 +102,49 @@ func (bot *Bot) HandleSimpleNotification(msg amqp.Delivery) {
 		return
 	}
 	bot.SendMessage(n.ChatID, n.Msg)
+}
+
+func (bot *Bot) HandleStart(msg *tgbotapi.Message) error {
+	args := strings.Split(msg.CommandArguments(), " ")
+	if len(args) == 1 && args[0] != "" {
+		// Handle telegram connect
+		// Extract unique_code from /start command
+		code := args[0]
+		// Get user_id from redis, telegram_codes:unique_code
+		ctx := rediscl.RDB.Ctx
+		userID, err := rediscl.RDB.Client.Get(ctx, "telegram_codes:"+code).Result()
+		if userID == "" || err == redis.Nil {
+			bot.SendMessage(msg.Chat.ID, "Link doesn't exist or expired")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// Set chat_id for user
+		uid, err := strconv.Atoi(userID)
+		if err != nil {
+			return err
+		}
+		user, err := bot.userService.GetUserByID(uid)
+		if err != nil {
+			return err
+		}
+		user.ChatID = &msg.Chat.ID
+		if _, err := bot.userService.CreateUser(user); err != nil {
+			if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
+				bot.SendMessage(msg.Chat.ID, "This telegram account is already connected. Contact support @p2phubb")
+			}
+			return err
+		}
+		// Delete unique_code from redis
+		if err := rediscl.RDB.Client.Del(ctx, "telegram_codes:"+code).Err(); err != nil {
+			return err
+		}
+		bot.SendMessage(msg.Chat.ID, "Successfully connected")
+		return nil
+	} else {
+		// Send welcome message
+		bot.SendMessage(msg.Chat.ID, WelcomeMessage)
+		return nil
+	}
 }
