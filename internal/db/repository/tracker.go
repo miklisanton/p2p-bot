@@ -33,10 +33,10 @@ func (repo *TrackerRepository) Save(tracker *models.Tracker) error {
 	}
 
 	if tracker.ID == 0 {
-		query := `INSERT INTO trackers (user_id, exchange, currency, side, username, notify, price, is_aggregated)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		query := `INSERT INTO trackers (user_id, adv_id, exchange, currency, side, username, notify, price, is_aggregated)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id`
-		err := tx.QueryRow(query, tracker.UserID, tracker.Exchange,
+		err := tx.QueryRow(query, tracker.UserID, tracker.AdvID, tracker.Exchange,
 			tracker.Currency, tracker.Side,
 			tracker.Username, tracker.Notify, tracker.Price, tracker.IsAggregated).Scan(&tracker.ID)
 
@@ -91,7 +91,7 @@ func (repo *TrackerRepository) GetMethodsForTracker(trackerId int64) ([]*models.
 func (repo *TrackerRepository) GetAllTrackers() ([]*models.UserTracker, error) {
 	var trackers []*models.UserTracker
 	query := `SELECT t.id as tracker_id, t.exchange, t.currency, t.side, t.username,
-        t.notify, t.waiting_update, t.is_aggregated, t.price, u.id, u.chat_id as user_id 
+        t.notify, t.waiting_update, t.is_aggregated, t.price, t.adv_id, u.id, u.chat_id as user_id
         FROM trackers t JOIN public.users u on t.user_id = u.id`
 	err := repo.db.Select(&trackers, query)
 	if err != nil {
@@ -110,7 +110,7 @@ func (repo *TrackerRepository) GetAllTrackers() ([]*models.UserTracker, error) {
 func (repo *TrackerRepository) GetTrackersByUserId(id int) ([]*models.UserTracker, error) {
 	var trackers []*models.UserTracker
 	query := `SELECT t.id as tracker_id, t.exchange, t.currency, t.side, t.username,
-        t.notify, t.waiting_update, t.is_aggregated, t.price, u.id as user_id, u.chat_id
+        t.notify, t.waiting_update, t.is_aggregated, t.price, t.adv_id, u.id as user_id, u.chat_id
         FROM trackers t JOIN public.users u on t.user_id = u.id WHERE u.id = $1`
 	err := repo.db.Select(&trackers, query, id)
 	if err != nil {

@@ -2,6 +2,7 @@ package models
 
 type UserTracker struct {
 	ID            int64            `db:"tracker_id" json:"id"`
+	AdvID         int64            `db:"adv_id" json:"adv_id"`
 	Exchange      string           `db:"exchange" json:"exchange"`
 	Currency      string           `db:"currency" json:"currency"`
 	Side          string           `db:"side" json:"side"`

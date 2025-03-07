@@ -2,6 +2,7 @@
 -- +goose StatementBegin
 CREATE TABLE trackers (
     id SERIAL PRIMARY KEY,
+    adv_id BIGINT NOT NULL,
     user_id INT NOT NULL,
     exchange varchar NOT NULL,
     currency varchar(3) NOT NULL,
