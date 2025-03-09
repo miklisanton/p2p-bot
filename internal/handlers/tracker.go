@@ -253,13 +253,7 @@ func (contr *Controller) CreateTracker(c echo.Context) error {
 		// Set price
 		tracker.Price = adv.GetPrice()
 		// Set advID
-		idStr := adv.GetId()
-		advID, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			log.Error().Err(err).Msg("Error parsing adv ID")
-			return err
-		}
-		tracker.AdvID = advID
+		tracker.AdvID = adv.GetId()
 		// Set payment methods
 		var pmStrings []string
 		if tracker.IsAggregated {
