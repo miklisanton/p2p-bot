@@ -68,6 +68,7 @@ func (ao *AdsObserver) Start(rate time.Duration, ctx context.Context) {
 }
 
 func (ao *AdsObserver) CheckAds() {
+
 	var wg sync.WaitGroup
 	for _, ex := range ao.exchanges {
 
@@ -134,7 +135,7 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool
 				// if advertisements payment methods contain one of the tracker payment methods
 				if ad.GetName() != tracker.Username && ad.GetPrice() != tracker.Price {
 					// if advertisement name doesnt match tracker username
-					if notified, err := ao.CheckAdNotified(tracker.UserID, ad); err != nil {
+					if notified, err := ao.CheckAdNotified(tracker.ID, ad, tracker.Side == "SELL"); err != nil {
 						log.Error().Msg("Error checking if ad is notified")
 					} else if !notified {
 						log.Info().Int64("tracker_id", tracker.ID).Str("adv_id", ad.GetId()).Float64("price", ad.GetPrice()).Msg("Sending notification")
@@ -182,13 +183,20 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool
 						}
 						log.Printf("User %s is not outbidded on %s for %s", tracker.Username, tracker.Exchange, pMethod.Id)
 						//Update tracker price
-						tracker.Price = ad.GetPrice()
-						if err := ao.trackerService.CreateTracker(tracker); err != nil {
-							log.Printf("Error updating tracker price: %s", err)
-						} else {
-							log.Debug().Fields(map[string]interface{}{
-								"id": tracker.ID,
-							}).Msg("tracker updated")
+						if tracker.Price != ad.GetPrice() {
+							//Update tracker price
+							tracker.Price = ad.GetPrice()
+							if err := ao.trackerService.CreateTracker(tracker); err != nil {
+								log.Printf("Error updating tracker price: %s", err)
+							} else {
+								log.Debug().Fields(map[string]interface{}{
+									"id": tracker.ID,
+								}).Msg("tracker updated")
+							}
+							// Remove all notifications for this tracker from redis
+							if err := ao.ClearNotified(*tracker); err != nil {
+								log.Error().Err(err).Msg("Error clearing notifications from redis")
+							}
 						}
 					}
 					break
@@ -200,10 +208,11 @@ func (ao *AdsObserver) CheckTracker(ads []services.P2PItemI, trackerID int) bool
 }
 
 func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
-	// Set notified for ad+price combination
+	// Set notified flag
 	ctx := rediscl.RDB.Ctx
-	rediscl.RDB.Client.Set(ctx, fmt.Sprintf("user%d:%s:%f", tracker.UserID, ad.GetId(), ad.GetPrice()), "true", time.Hour*12)
-	log.Debug().Str("key", fmt.Sprintf("user%d:%s:%f", tracker.UserID, ad.GetId(), ad.GetPrice())).Msg("Redis key set")
+	redisKey := fmt.Sprintf("tracker%d:%s", tracker.ID, ad.GetId())
+	rediscl.RDB.Client.Set(ctx, redisKey, ad.GetPrice(), time.Hour*24)
+	log.Debug().Str("key", redisKey).Float64("value", ad.GetPrice()).Msg("Redis key set")
 
 	user, err := ao.userService.GetUserByID(tracker.UserID)
 	if err != nil {
@@ -287,9 +296,9 @@ func (ao *AdsObserver) Notify(tracker *models.Tracker, ad services.P2PItemI) {
 	}
 }
 
-func (ao *AdsObserver) CheckAdNotified(uid int, ad services.P2PItemI) (bool, error) {
+func (ao *AdsObserver) CheckAdNotified(tid int64, ad services.P2PItemI, isSell bool) (bool, error) {
 	ctx := rediscl.RDB.Ctx
-	notified := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("user%d:%s:%f", uid, ad.GetId(), ad.GetPrice()))
+	notified := rediscl.RDB.Client.Get(ctx, fmt.Sprintf("tracker%d:%s", tid, ad.GetId()))
 	log.Debug().Str("value", notified.Val()).Msg("Redis value retreived")
 	if notified.Err() == redis.Nil || notified.Val() == "" {
 		return false, nil
@@ -297,7 +306,43 @@ func (ao *AdsObserver) CheckAdNotified(uid int, ad services.P2PItemI) (bool, err
 	if notified.Err() != nil {
 		return false, notified.Err()
 	}
-	return notified.Val() == "true", nil
+	price, err := notified.Float64()
+	if err != nil {
+		return false, err
+	}
+
+	// If I am a seller, I want to get notified when competitor is reducing price
+	if isSell {
+		return ad.GetPrice() <= price, nil
+	} else {
+		return ad.GetPrice() >= price, nil
+	}
+}
+
+func (ao *AdsObserver) ClearNotified(tracker models.Tracker) error {
+	ctx := rediscl.RDB.Ctx
+	keys := rediscl.RDB.Client.Keys(ctx, fmt.Sprintf("tracker%d:*", tracker.ID))
+	log.Debug().Strs("keys", keys.Val()).Msg("Keys found")
+	for _, key := range keys.Val() {
+		price, err := rediscl.RDB.Client.Get(ctx, key).Float64()
+		if err != nil {
+			return err
+		}
+		if tracker.Side == "SELL" {
+			if price < tracker.Price {
+				if err := rediscl.RDB.Client.Del(ctx, key).Err(); err != nil {
+					return err
+				}
+			}
+		} else {
+			if price > tracker.Price {
+				if err := rediscl.RDB.Client.Del(ctx, key).Err(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (ao *AdsObserver) CheckTrialNotified(uid int) (bool, error) {
